@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Internet Speed Test</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111827;
+      color: white;
+    }
+
+    .speedtest-wrapper {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .speedtest-box {
+      text-align: center;
+    }
+
+    .circle {
+      width: 220px;
+      height: 220px;
+      border: 8px solid #374151;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px auto;
+      background: #1f2937;
+    }
+
+    .circle p {
+      margin: 6px 0;
+      font-size: 18px;
+    }
+
+    .circle .value {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 8px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      color: white;
+      transition: background 0.2s;
+    }
+
+    .start-btn {
+      background: #2563eb;
+    }
+    .start-btn:hover {
+      background: #1d4ed8;
+    }
+
+    .unit-btn {
+      background: #374151;
+    }
+    .unit-btn:hover {
+      background: #4b5563;
+    }
+  </style>
+</head>
+<body>
+  <div class="speedtest-wrapper">
+    <div class="speedtest-box">
+      <h1>Internet Speed Test</h1>
+      <div class="circle">
+        <div>
+          <p>Download</p>
+          <p id="download" class="value">--</p>
+          <p>Upload</p>
+          <p id="upload" class="value">--</p>
+        </div>
+      </div>
+      <div>
+        <button class="start-btn" id="runBtn">Run Test</button>
+        <button class="unit-btn" id="unitBtn">Switch to mbps</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let unit = "MBps";
+
+    function formatSpeed(bps) {
+      if (!bps) return "--";
+      return unit === "mbps"
+        ? (bps / 1_000_000).toFixed(2) + " mbps"
+        : (bps / 8 / 1_000_000).toFixed(2) + " MBps";
+    }
+
+    async function runDownloadTest() {
+      const url = `https://speed.cloudflare.com/__down?bytes=10000000&nocache=${Date.now()}`;
+      const start = performance.now();
+      const response = await fetch(url);
+      if (!response.ok || !response.body) throw new Error("Download test failed");
+      const reader = response.body.getReader();
+      let bytes = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) bytes += value.length;
+      }
+      const end = performance.now();
+      return (bytes * 8) / ((end - start) / 1000);
+    }
+
+    async function runUploadTest() {
+      const url = "https://speed.cloudflare.com/__up";
+      const data = new Uint8Array(5 * 1024 * 1024); // 5MB
+      const start = performance.now();
+      const response = await fetch(url, { method: "POST", body: data });
+      if (!response.ok) throw new Error("Upload test failed");
+      const end = performance.now();
+      return (data.length * 8) / ((end - start) / 1000);
+    }
+
+    async function runTest() {
+      document.getElementById("download").innerText = "Testing...";
+      document.getElementById("upload").innerText = "Testing...";
+      try {
+        const dl = await runDownloadTest();
+        document.getElementById("download").innerText = formatSpeed(dl);
+        const ul = await runUploadTest();
+        document.getElementById("upload").innerText = formatSpeed(ul);
+      } catch (err) {
+        console.error(err);
+        document.getElementById("download").innerText = "Error";
+        document.getElementById("upload").innerText = "Error";
+      }
+    }
+
+    document.getElementById("runBtn").addEventListener("click", runTest);
+    document.getElementById("unitBtn").addEventListener("click", () => {
+      unit = unit === "MBps" ? "mbps" : "MBps";
+      document.getElementById("unitBtn").innerText =
+        "Switch to " + (unit === "MBps" ? "mbps" : "MBps");
+    });
+  </script>
+</body>
+</html>
